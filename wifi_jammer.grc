@@ -1,0 +1,55 @@
+<?xml version='1.0' encoding='US-ASCII'?>
+<?grc format='2'?>
+<flow_graph>
+  <!-- Blocks -->
+  <block>
+    <key>type</key>
+    <param>
+      <key>id</key>
+      <value>noise_source</value>
+    </param>
+    <param>
+      <key>noise_type</key>
+      <value>gaussian</value>
+    </param>
+    <param>
+      <key>amplitude</key>
+      <value>1.0</value>
+    </param>
+    <param>
+      <key>samp_rate</key>
+      <value>10e6</value>
+    </param>
+  </block>
+  
+  <block>
+    <key>type</key>
+    <value>uhd_usrp_sink</value>
+    <param>
+      <key>device_addr</key>
+      <value>type=b200</value>
+    </param>
+    <param>
+      <key>center_freq</key>
+      <value>2.437e9</value>
+    </param>
+    <param>
+      <key>samp_rate</key>
+      <value>10e6</value>
+    </param>
+    <param>
+      <key>gain</key>
+      <value>25</value>
+    </param>
+    <param>
+      <key>ant</key>
+      <value>TX/RX</value>
+    </param>
+  </block>
+  
+  <!-- Connections -->
+  <connection>
+    <source key="0" channel="0">noise_source</source>
+    <sink key="0" channel="0">uhd_usrp_sink</sink>
+  </connection>
+</flow_graph>

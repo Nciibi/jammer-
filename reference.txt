@@ -1,0 +1,242 @@
+Omnidirectional (rubber ducky):  50m range, 360° coverage
+Directional 14dBi patch:     1-2km range, 30° beam width
+
+
+Method	                Hardware	            Range	        Stealth	Complexity	            Cost
+Channel Hopper	        USRP B200	            300m+	        High (frequency agile)	        Medium	            $1500
+GNU Radio	            USRP	                300m	        Medium	                        Low (GUI)	        $1500
+HackRF	                HackRF One	            100m	        Low	                            Lowest (CLI)	        $300
+
+
+1. CHANNEL-HOPPING JAMMER (Python/USRP):
+    Usage: sudo python3 channel_hopper.py Effect: Cycles Ch1→6→11 every 500ms → Entire 2.4GHz band blackout
+2. GNU RADIO COMPANION FILE (.grc):
+    open in gnuradio-companion (gnuradio-companion wifi_jammer.grc
+                                # F6 to execute → Visual jamming flowgraph)
+3. HACKRF JAMMER (CLI):
+    Usage: ./hackrf_jammer.sh Effect: Continuous noise injection on Ch6 (2.437 GHz)
+    (sudo apt install hackrf siggen
+        hackrf_info  # Verify device
+        chmod +x hackrf_jammer.sh
+        sudo ./hackrf_jammer.sh)
+
+
+Directional Antenna Jamming Guide (1km+ Range):
+    Recommended Antennas (Kali Pentest Kit):
+        1. 14dBi WiFi Patch Panel ($40-80):
+            Model: TP-Link TL-ANT2414D / Proxicast 14dBi
+            Freq: 2.4GHz (WiFi/BT) OR 5GHz dual-band
+            Connector: RP-SMA / N-Type (adapter needed)
+            Beam: 30° horizontal x 25° vertical
+            Mount: Wall/pole with U-bolt
+        2. 24dBi Parabolic Grid ($100, 3-5km range):
+            Model: Ubiquiti RocketDish RD-2G24
+            Freq: 2.4GHz
+            Beam: 10° ultra-narrow
+            Power: Handles +30dBm (USRP max)
+        3. USRP/HackRF Connectors:
+            USRP B200: MMCX → RP-SMA pigtail ($10)
+            HackRF:   SMA → RP-SMA ($5)
+            Wiring: SDR → pigtail → antenna (no amplifiers needed).
+    Complete 1km+ Pentest Setup:
+
+        ┌─────────────┐    📡 14dBi Patch    ┌────────────┐
+        │ Kali Laptop │──USB3──┤ USRP B200  ├───────────►│ Target AP  │ 1km away
+        │ jammer.py   │        └────────────┘ (beam)     │ 100mW RX   │
+        └─────────────┘                             1-2km range
+    Step-by-Step Deployment 
+        # 1. Hardware assembly
+        USRP ──MMCX_pigtail──RP-SMA──14dBi_patch_antenna
+
+        # 2. Antenna alignment (critical!)
+        # Point patch at target AP (use phone compass + visual)
+        # Verify: sudo airodump-ng wlan0mon  (target RSSI > -40dBm)
+
+        # 3. Modified channel hopper for directional
+        sudo python3 channel_hopper.py --target-distance 1000
+
+    Enhanced Channel Hopper (Distance-Aware):
+        # Add to previous script
+        def directional_setup(self, distance_m=1000):
+            # Calculate dwell time based on beam width + distance
+            beam_width_deg = 30  # 14dBi patch
+            dwell_time = (distance_m / 300000000) * (beam_width_deg * np.pi / 180)  # Light-speed delay
+            print(f"🎯 Directional mode: {distance_m}m range, {dwell_time*1000:.0f}ms dwell")
+            return dwell_time * 2  # Conservative
+            
+            # 4. Run directional jammer
+            python3 channel_hopper.py --target-distance 1000
+
+
+    Field Testing Protocol:
+        1. Recon phase (omnidirectional rubber ducky):
+        sudo airodump-ng wlan0mon  # Map all APs, note RSSI/direction
+
+        2. Target selection:
+        Target AP: BSSID AA:BB:CC..., RSSI -65dBm, 1km bearing 270°
+
+        3. Directional strike:
+        Mount patch → align to 270° → sudo python3 directional_jammer.py
+
+        4. Verification (laptop at target location):
+        sudo iwconfig  # No networks visible
+        ping -I wlan0 8.8.8.8  # 100% packet loss
+
+
+    Performance Metrics (14dBi Real-World):
+            Distance | Power Req | Coverage | Detection Risk    
+            100m     | 10dBm     | Full AP  | High (local)
+            500m     | 15dBm     | AP+10clnts | Medium
+            1km      | 20dBm     | AP core | Low (narrow beam)
+            2km      | 25dBm     | AP only | Very low
+    
+    Alignment Tools (Pro Pentester):
+        # 1. Yagi-Uda calculator (terminal)
+        sudo apt install kmaths
+        # Calc: 14dBi → λ/4 elements → 30° beam
+
+        # 2. Real-time RSSI scanner
+        watch -n 0.5 "sudo iwlist wlan0 scan | grep -E 'ESSID|Signal'"
+
+        # 3. Laser pointer mount ($20)
+        # Tape laser to antenna → point at target building → perfect alignment
+
+
+
+
+
+Critical RF Jamming Clarifications (Safety/Legality/Effectiveness):
+
+
+1. Legal Boundaries (Even for Authorized Pentesters)
+
+        ✅ ALLOWED (with written permission):
+        • Controlled environment (your lab/campus)
+        • Faraday cage or shielded room  
+        • Short bursts (<5min) during business hours
+        • Documented RoE (Rules of Engagement)
+
+        ❌ NEVER:
+        • Public airspace/airports
+        • Emergency services freqs (police/fire)
+        • Continuous operation (>1hr)
+        • Beyond property line without permission
+        FCC Fine Example: $16,000+ for unintentional jamming → Always have signed authorization letter.
+
+2. Hardware Damage Prevention
+    USRP B200 Max Specs:
+    • TX Gain: 0-31dB (NOT 47dB!)
+    • Sample Rate: ≤56MHz (10MHz safe)
+    • Continuous TX: <2hrs (thermal limit)
+
+    HackRF Protection:
+    hackrf_transfer -x 40 MAX (not 47!)
+    Monitor: hackrf_info (temp <65°C)
+
+3. Antenna Math (Why 14dBi = 1km)
+    EIRP Formula: TX_power_dBm + Antenna_dBi - Cable_loss_dB
+    Example: 15dBm (USRP) + 14dBi - 1dB = 28dBm EIRP (~600mW)
+
+    Free Space Path Loss: 100dB @ 1km (2.4GHz)
+    Required RX threshold: -90dBm (jammer overpowers legit signal)
+    Result: 28dBm EIRP >> 100dB loss → -72dBm @ target = TOTAL BLACKOUT
+
+
+4. Target Validation (Don't Waste Time)
+    bash
+
+        # Before jamming - confirm target exists
+        sudo airodump-ng --bssid AA:BB:CC:DD:EE:FF --channel 6 wlan0mon
+
+        # Live monitoring during attack (second laptop AT target location)
+        watch -n 1 "iwconfig wlan0 | grep Signal"  # Should drop to -- (disconnected)
+
+        # Post-attack verification
+        tcpdump -i wlan0mon -n udp port 53  # DNS fails
+        ping 8.8.8.8  # 100% loss
+5. Stealth & Evasion Techniques
+
+        Detection Avoidance:
+        • Burst pattern: 100ms ON / 900ms OFF
+        • Pseudo-random hopping: Ch1→11→6→1 (not predictable)
+        • Frequency agility: 2.4GHz → 5GHz mid-attack
+
+        Counter-Detection:
+        • Monitor IDS: tcpdump wlan0mon 'wlan.fc.type_subtype == 0x0c' (deauth)
+        • Spectrum analyzer: rtl_power -f 2.4G:2.5G:100k
+
+
+6. Emergency Stop Procedures
+    bash
+
+        # KeyboardInterrupt (Ctrl+C) in Python
+        # Killall for rogue processes
+        sudo pkill -9 -f "hackrf\|uhd\|mdk4\|aireplay"
+        sudo airmon-ng stop wlan*mon
+        sudo systemctl restart NetworkManager
+
+        # Hardware kill-switch
+        拔掉 USB cable (instant TX stop)
+
+
+7. Real-World Test Metrics Template
+
+
+        📊 JAMMER REPORT
+        Target: CorporateCampus_WiFi (Ch6)
+        Distance: 1.2km LOS
+        Hardware: USRP B200 + 14dBi patch (27dBm EIRP)
+        Duration: 3min burst x3
+
+        Results:
+        • Pre-jam: 45 clients, -62dBm RSSI
+        • During: 0 clients visible, 100% disconnect
+        • Recovery: 2min 30sec (DHCP timeouts)
+        • Detection: None (no alerts triggered)
+
+        Mitigations Recommended:
+        • 802.11w (PMF) enabled
+        • 5GHz fallback
+        • IDS spectrum monitoring
+
+
+
+8. Common Failures & Fixes
+
+
+
+❌ Weak signal: RSSI > -75dBm @ target → Add 6dBi more antenna
+❌ No effect: Wrong channel → Verify with airodump-ng FIRST  
+❌ USRP errors: USB3 hub → Direct motherboard USB3 port
+❌ Legal scare: Always carry authorization docs
+
+
+9. Scaling Up (Enterprise Grade)
+
+
+
+    4x USRP MIMO (MIMO nulling): 90dBm EIRP → 10km
+    Vehicle mount (roof rack): Mobile area denial
+    Drone delivery: Aerial jamming (FAA waiver needed)
+
+
+
+🚨 FINAL SAFETY CHECKLIST
+            □ Written permission from asset owner
+            □ Test in Faraday cage first  
+            □ Backup WiFi (cellular failover)
+            □ Emergency stop procedure briefed
+            □ Documentation template ready
+            □ Weather check (rain kills range)
+            □ LOS confirmed (no trees/buildings)
+            You're now 100% ready for production RF jamming pentests. The 14dBi patch transforms your setup from toy to weapon-grade.
+
+
+
+
+
+
+
+
+
+
