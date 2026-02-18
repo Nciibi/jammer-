@@ -14,9 +14,11 @@ A comprehensive collection of Software-Defined Radio (SDR) jamming tools for edu
 
 ## 📋 Features
 
-- **Multiple Platform Support**: USRP B200 and HackRF One
+- **Unified Launcher**: Single CLI interface for all platforms
+- **Multiple Platform Support**: USRP B200, HackRF One, GNU Radio
 - **Dual Operation Modes**: Channel hopping and full-band jamming
 - **Automatic Waveform Generation**: On-demand IQ file creation
+- **Python Package**: Importable modules for custom development
 - **Channel Hopping**: Automatic frequency switching
 - **Noise Generation**: Complex Gaussian noise transmission
 - **Graceful Shutdown**: Signal handling and resource cleanup
@@ -52,67 +54,99 @@ pip install uhd numpy
 
 ## 🚀 Quick Start
 
-### USRP Channel Hopper
+### Unified Launcher (Recommended)
 ```bash
-# Clone and navigate to directory
-cd jammer
+# Navigate to project directory
+cd wifi-jammer
 
-# Run USRP channel hopper
-python3 channel_hopper.py
+# Make launcher executable
+chmod +x jammer/launch.py
+
+# USRP single frequency jamming
+python jammer/launch.py --usrp --freq 2.437e9 --gain 20
+
+# USRP channel hopping
+python jammer/launch.py --usrp --hop --hop-interval 0.5
+
+# HackRF channel hopping
+python jammer/launch.py --hackrf --hop
+
+# HackRF full-band jamming
+python jammer/launch.py --hackrf --full-band
+
+# GNU Radio flowgraph
+python jammer/launch.py --gnuradio
 ```
 
-### HackRF Jammer
+### Individual Components
 ```bash
-# Make script executable
-chmod +x hackrf_jammer.sh
+# USRP channel hopper
+python jammer/channel_hopper.py
 
-# Channel hopping mode (default)
-./hackrf_jammer.sh hop
+# HackRF jammer (modes)
+chmod +x jammer/hackrf_jammer_modes.sh
+./jammer/hackrf_jammer_modes.sh hop
+./jammer/hackrf_jammer_modes.sh full
 
-# Full-band wideband mode
-./hackrf_jammer.sh full
-
-# Default mode (channel hopping)
-./hackrf_jammer.sh
-```
-
-### Basic USRP Jammer
-```bash
-# Simple single-frequency jammer
-python3 jammer.py
+# GNU Radio
+gnuradio-companion gnuradio/wifi_jammer.grc
 ```
 
 ## 📖 Usage Examples
 
-### USRP Channel Hopper
-```python
-from channel_hopper import ChannelHopper
+### Unified Launcher Interface
+```bash
+# View all options
+python jammer/launch.py --help
 
-# Custom configuration
-hopper = ChannelHopper(
-    rate=10e6,           # 10 MS/s sample rate
-    gain=22,             # 22 dB TX gain  
-    hop_interval=0.5     # 500ms between hops
-)
+# USRP examples
+python jammer/launch.py --usrp --freq 2.437e9 --duration 30
+python jammer/launch.py --usrp --hop --gain 25 --hop-interval 0.3
+
+# HackRF examples  
+python jammer/launch.py --hackrf --hop
+python jammer/launch.py --hackrf --full-band
+
+# GNU Radio
+python jammer/launch.py --gnuradio
+```
+
+### Python API
+```python
+from jammer import Jammer, ChannelHopper
+
+# USRP single frequency
+jammer = Jammer(freq=2.437e9, gain=20, duration=60)
+jammer.transmit()
+
+# USRP channel hopping
+hopper = ChannelHopper(rate=10e6, gain=22, hop_interval=0.5)
 hopper.jam()
 ```
 
-### HackRF Command Line
-```bash
-# Channel hopping mode (20MHz per channel)
-./hackrf_jammer.sh hop
+## � Project Structure
 
-# Full-band mode (60MHz coverage)
-./hackrf_jammer.sh full
-
-# Manual single channel jamming
-hackrf_transfer -t wifi_noise_20mhz.iq -f 2437000000 -s 20M -a 1 -x 47
-
-# Manual channel hopping
-for ch in 2412000000 2437000000 2462000000; do
-    hackrf_transfer -t wifi_noise_20mhz.iq -f "$ch" -s 20M -a 1 -x 47
-    sleep 0.3
-done
+```
+wifi-jammer/
+├── README.md                 # This documentation
+├── LICENSE                   # MIT license with educational disclaimer
+├── requirements.txt          # Python dependencies
+├── .gitignore               # Git ignore patterns
+├── jammer/                  # Main jammer package
+│   ├── __init__.py          # Package initialization
+│   ├── launch.py            # Unified launcher (CLI interface)
+│   ├── jammer.py            # USRP single-frequency jammer
+│   ├── channel_hopper.py    # USRP channel hopping jammer
+│   ├── hackrf_jammer.sh     # HackRF jammer script
+│   ├── hackrf_jammer_modes.sh # HackRF with mode selection
+│   └── utils.py             # Shared utilities
+├── gnuradio/                # GNU Radio integration
+│   ├── wifi_jammer.grc      # GNU Radio flowgraph
+│   └── screenshots/         # UI screenshots (optional)
+├── iq_samples/              # Pre-generated IQ files
+│   └── README.md            # IQ file documentation
+└── docs/                    # Additional documentation
+    └── reference.txt        # Technical reference
 ```
 
 ## 🔧 Configuration
@@ -143,8 +177,12 @@ done
 tail -f channel_hopper.log
 
 # Monitor HackRF output (both modes)
-./hackrf_jammer.sh hop | tee hackrf_hop.log
-./hackrf_jammer.sh full | tee hackrf_full.log
+./jammer/hackrf_jammer_modes.sh hop | tee hackrf_hop.log
+./jammer/hackrf_jammer_modes.sh full | tee hackrf_full.log
+
+# Monitor unified launcher output
+python jammer/launch.py --usrp --hop | tee usrp.log
+python jammer/launch.py --hackrf --hop | tee hackrf.log
 ```
 
 ### Performance Metrics
